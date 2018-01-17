@@ -4,6 +4,7 @@
 TOOLDIR=`dirname "$0"`
 cd $TOOLDIR
 
+mkdir ../build/
 cd ../build/
 
 rm -rf *
