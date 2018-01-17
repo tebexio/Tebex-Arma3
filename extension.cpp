@@ -126,7 +126,7 @@ namespace tebex {
                 return;
             }
 
-            respond(output, RESPONSE_TYPE_ERROR, "\"Unkown command\"");
+            respond(output, RESPONSE_TYPE_ERROR, "Unkown command");
         }
 
     }
