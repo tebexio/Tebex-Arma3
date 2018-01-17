@@ -4,6 +4,7 @@ cd cd /d %~dp0
 rmdir ../build /S /Q
 mkdir ../build
 
+mkdir ../build
 cd ../build
 
 

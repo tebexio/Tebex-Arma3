@@ -20,18 +20,12 @@ namespace tebex {
     namespace extension {
 
         namespace {
-            const std::string EXTENSION_FOLDER_ENV_VAR = "TEBEX_EXTENSION_HOME";
-            const std::string EXTENSION_FOLDER = "TebexExtension";
-            const std::string CONFIG_FILE = "config.properties";
-            const std::string DEFAULT_REQUEST_PARAM_SEPARATOR = "`";
             Config *config;
-
-            std::thread sqlThread;
-            std::string requestParamSeparator;
+            std::string requestParamSeparator = ":";
         }
 
         void respond(char* output, const std::string& type, const std::string& data) {
-            std::string message = "{'type' : '" + type + "', 'message' : ' " + data + "'}";
+            std::string message = "" + type + ":" + data + "";
             message.copy(output, message.length());
             output[message.length()] = '\0';
         }
@@ -52,6 +46,25 @@ namespace tebex {
         }
 
         void finalize() {
+        }
+
+        void setInterval(auto function,int interval) {
+            std::thread th([&]() {
+                while(true) {
+                    std::this_thread::sleep_for(std::chrono::seconds(interval));
+                    function();
+                }
+            });
+            th.detach();
+        }
+
+        rapidjson::Value addnvp(rapidjson::Document& document, const char *key, const char *value) {
+            rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+            rapidjson::Value nvp(rapidjson::kArrayType);
+            nvp.PushBack(rapidjson::Value(key, allocator), allocator);
+            nvp.PushBack(rapidjson::Value(value, allocator), allocator);
+            return nvp;
+
         }
 
         void call(char* output, int outputSize, const char* function) {
@@ -86,18 +99,35 @@ namespace tebex {
                 respond(output, RESPONSE_TYPE_OK, "Secret set to " + request.params[1] + "");
                 return;
             }
-            respond(output, RESPONSE_TYPE_ERROR, "\"Unkown command\"");
-        }
+            else if (request.command == "info") {
+                auto api = new Api(config);
+                auto info = api->getServerInformation();
+
+                rapidjson::Document response;
+                response.SetArray();
+
+                rapidjson::Document::AllocatorType& allocator = response.GetAllocator();
 
 
-        void setInterval(auto function,int interval) {
-            std::thread th([&]() {
-                while(true) {
-                    std::this_thread::sleep_for(std::chrono::seconds(interval));
-                    function();
-                }
-            });
-            th.detach();
+                addnvp(response, "account_id", info["account"]["id"].GetString());
+                addnvp(response, "domain", info["account"]["domain"].GetString());
+                addnvp(response, "account_name", info["account"]["name"].GetString());
+
+                addnvp(response, "game_type", info["account"]["game_type"].GetString());
+
+                addnvp(response, "server_id", info["server"]["id"].GetString());
+                addnvp(response, "server_name", info["server"]["name"].GetString());
+
+                rapidjson::StringBuffer buffer;
+                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                response.Accept(writer);
+                respond(output, RESPONSE_TYPE_OK, buffer.GetString());
+                buffer.Clear();
+                return;
+            }
+
+            respond(output, RESPONSE_TYPE_ERROR, "Unkown command");
         }
+
     }
 }
