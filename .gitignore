@@ -1,0 +1,8 @@
+cmake-build-debug
+CMakeFiles
+CMakeCache.txt
+.idea
+Makefile
+cmake_install.cmake
+libTebex_Arma3*
+*.cbp
