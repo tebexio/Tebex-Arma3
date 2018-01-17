@@ -1,8 +1,14 @@
 #include "extension.h"
+#include "Config.h"
 
 #include <fstream>
 #include <regex>
 #include <thread>
+#include <chrono>
+#include "rapidjson/writer.h"
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include "Api.h"
 
 #ifdef _WIN32
 #include "shlobj.h"
@@ -18,10 +24,10 @@ namespace tebex {
             const std::string EXTENSION_FOLDER = "TebexExtension";
             const std::string CONFIG_FILE = "config.properties";
             const std::string DEFAULT_REQUEST_PARAM_SEPARATOR = "`";
+            Config *config;
 
             std::thread sqlThread;
             std::string requestParamSeparator;
-            std::string configError = "";
         }
 
         void respond(char* output, const std::string& type, const std::string& data) {
@@ -35,19 +41,13 @@ namespace tebex {
             elems = { std::sregex_token_iterator(str.begin(), str.end(), separatorRegex, -1), std::sregex_token_iterator() };
         }
 
-        std::string getExtensionFolder() {
-            return "";
-        }
-
-        std::string getStringProperty(const std::string& key) {
-            return "";
-        }
-
-        uint32_t getUIntProperty(const std::string& key) {
-            return 0;
-        }
-
         bool initialize() {
+            config = new Config();
+            //Do we have a valid secret? If not, prompt for one
+
+
+            //Set up a timer to check for commands
+
             return true;
         }
 
@@ -55,10 +55,6 @@ namespace tebex {
         }
 
         void call(char* output, int outputSize, const char* function) {
-            if (!configError.empty()) {
-                respond(output, RESPONSE_TYPE_ERROR, configError);
-                return;
-            }
             Request request{ "" };
             split(std::string(function), requestParamSeparator, request.params);
             if (!request.params.empty()) {
@@ -72,7 +68,36 @@ namespace tebex {
                 respond(output, RESPONSE_TYPE_OK, requestParamSeparator);
                 return;
             }
+            else if (request.command == "secret") {
+                config->secret = request.params[1];
+                config->writeFile();
+
+                auto api = new Api(config);
+                try {
+                    auto information = api->getServerInformation();
+                    respond(output, RESPONSE_TYPE_OK, "Secret set to " + request.params[1] = "");
+                } catch (std::runtime_error& e) {
+                    char* error = (char *)"";
+                    strcpy(error, "Could not validate secret key: ");
+                    strcpy(error, e.what());
+                    respond(output, RESPONSE_TYPE_ERROR,  + error);
+                }
+
+                respond(output, RESPONSE_TYPE_OK, "Secret set to " + request.params[1] + "");
+                return;
+            }
             respond(output, RESPONSE_TYPE_ERROR, "\"Unkown command\"");
+        }
+
+
+        void setInterval(auto function,int interval) {
+            std::thread th([&]() {
+                while(true) {
+                    std::this_thread::sleep_for(std::chrono::seconds(interval));
+                    function();
+                }
+            });
+            th.detach();
         }
     }
 }
